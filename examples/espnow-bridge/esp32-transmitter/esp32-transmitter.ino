@@ -2,12 +2,19 @@
 #include <esp_now.h>
 #include <WiFi.h>
 
-#define UART_TX_PIN 1
-#define UART_RX_PIN 3
 #define SBUS_BAUD 100000
 
 static EspNowRcLink::Receiver rx;
-static uint32_t lastSend = 0;
+
+struct SensorData {
+    int16_t vbat;
+    int16_t current;
+    int16_t rpm[4];
+    int16_t temp;
+} __attribute__((packed));
+
+static SensorData sensors;
+static bool hasSensors = false;
 
 void sendSbusUart(const uint16_t* channels) {
     uint8_t sbusBuf[25];
@@ -49,9 +56,53 @@ void sendSbusUart(const uint16_t* channels) {
     Serial2.write(sbusBuf, 25);
 }
 
+void sendTelemetryEspNow() {
+    if (hasSensors) {
+        rx.setSensor(0, sensors.vbat);
+        rx.setSensor(1, sensors.current);
+        rx.setSensor(2, sensors.temp);
+        hasSensors = false;
+    }
+}
+
+void handleSerialTelemetry() {
+    static uint8_t buf[64];
+    static size_t idx = 0;
+
+    while (Serial2.available()) {
+        uint8_t b = Serial2.read();
+
+        if (idx == 0 && b != 0xA5) {
+            continue;
+        }
+
+        if (idx == 1) {
+            if (b > 32) {
+                idx = 0;
+                continue;
+            }
+            buf[idx++] = b;
+        }
+
+        if (idx >= 2) {
+            buf[idx++] = b;
+
+            uint8_t len = buf[1];
+            if (idx >= len + 3) {
+                uint8_t type = buf[2];
+                if (type == 0x01) {
+                    memcpy(&sensors, &buf[3], sizeof(SensorData));
+                    hasSensors = true;
+                }
+                idx = 0;
+            }
+        }
+    }
+}
+
 void setup() {
     Serial.begin(115200);
-    Serial2.begin(SBUS_BAUD, SERIAL_8E2, UART_RX_PIN, UART_TX_PIN);
+    Serial2.begin(SBUS_BAUD, SERIAL_8E2);
 
     WiFi.mode(WIFI_STA);
     WiFi.disconnect();
@@ -76,13 +127,10 @@ void loop() {
             channels[i] = rx.getChannel(i);
         }
         sendSbusUart(channels);
-        lastSend = millis();
     }
 
-    if (millis() - lastSend > 100) {
-        uint16_t failSafe[16] = {1500, 1500, 1000, 1500, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000};
-        sendSbusUart(failSafe);
-    }
+    handleSerialTelemetry();
+    sendTelemetryEspNow();
 
     delayMicroseconds(100);
 }

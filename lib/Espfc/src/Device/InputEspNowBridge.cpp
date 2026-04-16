@@ -80,6 +80,14 @@ void InputEspNowBridge::apply()
     _newData = true;
 }
 
+void InputEspNowBridge::sendPacket()
+{
+    if (!_serial) return;
+    if (_telemetryLen == 0) return;
+
+    _serial->write(_telemetryBuf, _telemetryLen);
+}
+
 InputStatus InputEspNowBridge::update()
 {
     if (!_serial) return INPUT_IDLE;
@@ -94,6 +102,28 @@ InputStatus InputEspNowBridge::update()
     }
 
     return INPUT_IDLE;
+}
+
+void InputEspNowBridge::sendTelemetry(const uint8_t* data, size_t len)
+{
+    if (!_serial || len > TELEMETRY_FRAME_SIZE - 4) return;
+
+    _telemetryBuf[0] = TELEMETRY_SYNC;
+    _telemetryBuf[1] = len + 3;
+    _telemetryBuf[2] = TELEMETRY_TYPE_SENSOR;
+
+    for (size_t i = 0; i < len && i < TELEMETRY_FRAME_SIZE - 4; i++) {
+        _telemetryBuf[3 + i] = data[i];
+    }
+
+    uint8_t csum = 0;
+    for (size_t i = 0; i < len + 3; i++) {
+        csum ^= _telemetryBuf[i];
+    }
+    _telemetryBuf[3 + len] = csum;
+
+    _telemetryLen = len + 4;
+    sendPacket();
 }
 
 uint16_t InputEspNowBridge::get(uint8_t i) const
