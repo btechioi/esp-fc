@@ -4,7 +4,7 @@ This document describes how to use ESP-NOW RC with the RP2040 flight controller 
 
 ## Overview
 
-The RP2040 lacks native WiFi capability, so ESP-NOW support is implemented via a UART SBUS bridge:
+The RP2040 lacks native WiFi capability, so ESP-NOW support is implemented via a UART SBUS bridge with bidirectional telemetry:
 
 ```
 ┌─────────────┐         SBUS (100k, 8E2)         ┌─────────────┐
@@ -12,36 +12,37 @@ The RP2040 lacks native WiFi capability, so ESP-NOW support is implemented via a
 │ Transmitter │         via ESP32 module          │  Flight     │
 │   (TX)      │                                  │ Controller  │
 └─────────────┘                                  └─────────────┘
+      ▲                                                  │
+      │              ESP-NOW Telemetry                    │
+      └──────────────────────────────────────────────────┘
 ```
 
 ## Components
 
-1. **ESP32 Transmitter Module** - Receives RC commands via ESP-NOW and forwards via SBUS UART
-2. **RP2040 Flight Controller** - Receives SBUS via UART2 and processes as normal RC input
+1. **ESP32 Transmitter Module** - Receives RC commands via ESP-NOW and forwards via SBUS UART, sends telemetry back
+2. **RP2040 Flight Controller** - Receives SBUS via UART2 and processes as normal RC input, sends telemetry
 
 ## Wiring
 
 | ESP32 | RP2040 | Description |
 |-------|--------|-------------|
-| GPIO 1 (TX) | GPIO 5 (RX2) | SBUS data |
+| GPIO 1 (TX) | GPIO 5 (RX2) | SBUS data (RC input) |
+| GPIO 3 (RX) | GPIO 4 (TX2) | Telemetry data (optional) |
 | GND | GND | Ground reference |
+
+**Note**: For bidirectional communication, both TX/RX are needed. For RC-only mode, only ESP32 TX → RP2040 RX is required.
 
 ## ESP32 Transmitter Setup
 
 1. Flash the `esp32-transmitter` sketch to your ESP32 module
 2. Connect the ESP32 to your RC transmitter (PPM, SBUS, or direct sticks)
 3. Connect UART TX to RP2040 RX2 (GPIO 5)
+4. Optionally connect UART RX to RP2040 TX2 (GPIO 4) for telemetry
 
 ### ESP32 Pinout
-- **UART TX**: GPIO 1 (default)
-- **UART RX**: GPIO 3 (for debugging)
+- **UART TX**: GPIO 1 (to RP2040 RX)
+- **UART RX**: GPIO 3 (from RP2040 TX, optional)
 - **SBUS Output**: Serial2 at 100000 baud, 8E2
-
-### Configuration
-The ESP32 will automatically:
-- Listen for ESP-NOW RC packets
-- Convert RC channels to SBUS format
-- Send SBUS over UART to RP2040
 
 ## RP2040 Flight Controller Setup
 
@@ -61,7 +62,7 @@ set serial_rx = ON
 
 ## Protocol Details
 
-### SBUS Format
+### SBUS Format (RC → RP2040)
 - **Baud Rate**: 100000
 - **Data Bits**: 8
 - **Parity**: Even
@@ -69,40 +70,64 @@ set serial_rx = ON
 - **Channels**: 16
 - **Frame Rate**: ~50 Hz
 
-### Frame Structure
-```
-Byte 0:  0x0F (start byte)
-Byte 1-22: Channel data (11 bits per channel, 16 channels)
-Byte 23: Flags (signal loss, failsafe)
-Byte 24: 0x00 (end byte)
+### Telemetry Format (RP2040 → ESP32)
+| Byte | Field | Description |
+|------|-------|-------------|
+| 0 | Sync | 0xA5 |
+| 1 | Length | Payload length + 3 |
+| 2 | Type | 0x01 = Sensor data |
+| 3-N | Payload | Sensor values |
+| N+1 | Checksum | XOR of bytes 0 to N |
+
+### Telemetry Payload Structure
+| Offset | Size | Field | Description |
+|--------|------|-------|-------------|
+| 0 | 2 | vbat | Battery voltage (mV) |
+| 2 | 2 | current | Current draw (mA) |
+| 4 | 2 | rpm[0] | Motor 0 RPM |
+| 6 | 2 | rpm[1] | Motor 1 RPM |
+| 8 | 2 | rpm[2] | Motor 2 RPM |
+| 10 | 2 | rpm[3] | Motor 3 RPM |
+| 12 | 2 | temp | Temperature (°C) |
+
+## API
+
+### Sending Telemetry (from flight controller)
+
+```cpp
+#include "Device/InputEspNowBridge.h"
+
+// Get bridge device
+auto* bridge = dynamic_cast<Espfc::Device::InputEspNowBridge*>(
+    input.getInputDevice());
+
+if (bridge) {
+    uint8_t telemetry[14];
+    telemetry[0] = vbat & 0xFF;
+    telemetry[1] = (vbat >> 8) & 0xFF;
+    // ... fill other fields
+    bridge->sendTelemetry(telemetry, sizeof(telemetry));
+}
 ```
 
 ## Files
 
 | File | Description |
 |------|-------------|
-| `Device/InputEspNowBridge.h` | RP2040 SBUS receiver header |
+| `Device/InputEspNowBridge.h` | RP2040 SBUS receiver header with telemetry |
 | `Device/InputEspNowBridge.cpp` | RP2040 SBUS receiver implementation |
 | `examples/espnow-bridge/esp32-transmitter/` | ESP32 transmitter sketch |
 
-## Usage
+## Performance
 
-1. **Build ESP32 Transmitter**
-   ```bash
-   cd examples/espnow-bridge/esp32-transmitter
-   pio run -e esp32-transmitter
-   pio run -e esp32-transmitter -t upload
-   ```
-
-2. **Configure RP2040 Flight Controller**
-   - Connect via Betaflight Configurator or CLI
-   - Enable serial RX and SBUS provider
-   - Set UART pins for your wiring
-
-3. **Pair ESP-NOW**
-   - The transmitter will automatically try to pair
-   - Hold bind button on your RC transmitter
-   - Status LED will indicate connection
+| Metric | Value |
+|--------|-------|
+| RC Latency | ~10ms (ESP-NOW) + ~5ms (SBUS) |
+| Telemetry Latency | ~15ms |
+| RC Update Rate | 50 Hz |
+| Telemetry Rate | 20 Hz |
+| Channels | 16 |
+| Range | ~100m (ESP-NOW) |
 
 ## Troubleshooting
 
@@ -116,16 +141,7 @@ Byte 24: 0x00 (end byte)
 - Check peer MAC addresses in espnow-rclink documentation
 - Verify ESP-NOW is enabled on both modules
 
-### SBUS Parsing Issues
-- SBUS is inverted by default
-- Ensure even parity (8E2) is configured
-- Check for voltage level compatibility (3.3V)
-
-## Performance
-
-| Metric | Value |
-|--------|-------|
-| Latency | ~10ms (ESP-NOW) + ~5ms (SBUS) |
-| Update Rate | 50 Hz |
-| Channels | 16 |
-| Range | ~100m (ESP-NOW) |
+### Telemetry Not Working
+- Verify bidirectional UART wiring (ESP32 RX → RP2040 TX)
+- Check telemetry packet format (sync 0xA5)
+- Ensure parity and baud rate match
