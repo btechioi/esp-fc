@@ -11,6 +11,9 @@
 #if defined(ESPFC_ESPNOW)
 #include "Device/InputEspNow.h"
 #endif
+#if defined(ARDUINO_ARCH_RP2040)
+#include "Device/InputEspNowBridge.h"
+#endif
 
 namespace Espfc {
 
@@ -67,6 +70,9 @@ class Input
     Device::InputCRSF _crsf;
 #if defined(ESPFC_ESPNOW)
     Device::InputEspNow _espnow;
+#endif
+#if defined(ARDUINO_ARCH_RP2040)
+    Device::InputEspNowBridge _espnowBridge;
 #endif
 
     static constexpr uint32_t TENTH_TO_US = 100000UL;  // 1_000_000 / 10;

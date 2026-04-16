@@ -374,6 +374,14 @@ Device::InputDevice * Input::getInputDevice()
     return &_espnow;
   }
 #endif
+#if defined(ARDUINO_ARCH_RP2040)
+  else if(serial && _model.isFeatureActive(FEATURE_RX_SERIAL) && _model.config.input.serialRxProvider == SERIALRX_SBUS)
+  {
+    int status = _espnowBridge.begin(serial);
+    _model.logger.info().log(F("RX ESPNOW-BRIDGE")).logln(status);
+    return &_espnowBridge;
+  }
+#endif
 
   return nullptr;
 }
