@@ -2,6 +2,10 @@
 #include "Utils/Filter.h"
 #include "Utils/MemoryHelper.h"
 
+#if defined(USE_CMSIS_DSP)
+#include "Utils/FastMath.hpp"
+#endif
+
 namespace Espfc {
 
 FilterConfig::FilterConfig(): type(FILTER_NONE), freq(0), cutoff(0) {}
@@ -70,6 +74,9 @@ void FilterStateBiquad::reset()
 
 void FilterStateBiquad::init(BiquadFilterType filterType, float rate, float freq, float q)
 {
+#if defined(USE_CMSIS_DSP)
+  q31.init(filterType, rate, freq, q);
+#else
   const float omega = (2.0f * Utils::pi() * freq) / rate;
   const float sn = sinf(omega);
   const float cs = cosf(omega);
@@ -109,15 +116,20 @@ void FilterStateBiquad::init(BiquadFilterType filterType, float rate, float freq
   this->b2 = b2 / a0;
   this->a1 = a1 / a0;
   this->a2 = a2 / a0;
+#endif
 }
 
 void FAST_CODE_ATTR FilterStateBiquad::reconfigure(const FilterStateBiquad& from)
 {
+#if defined(USE_CMSIS_DSP)
+  q31.reconfigure(from.q31);
+#else
   b0 = from.b0;
   b1 = from.b1;
   b2 = from.b2;
   a1 = from.a1;
   a2 = from.a2;
+#endif
 }
 
 float FAST_CODE_ATTR FilterStateBiquad::update(float n)
@@ -299,7 +311,11 @@ float FAST_CODE_ATTR Filter::update(float v)
     case FILTER_BIQUAD:
     case FILTER_NOTCH:
     case FILTER_BPF:
+#if defined(USE_CMSIS_DSP)
+      return _state.bq.q31.update(v);
+#else
       return _state.bq.update(v);
+#endif
     case FILTER_NOTCH_DF1:
       return _output_weight * _state.bq.updateDF1(v) + _input_weight * v;
     case FILTER_FIR2:

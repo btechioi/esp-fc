@@ -3,6 +3,10 @@
 #include <cmath>
 #include <cstdint>
 
+#if defined(USE_CMSIS_DSP)
+#include "Utils/FastMath.hpp"
+#endif
+
 // Fast inverse square-root
 // See: http://en.wikipedia.org/wiki/Fast_inverse_square_root
 inline float invSqrt(float x)
@@ -360,12 +364,21 @@ public:
   Quaternion eulerToQuaternion() const
   {
     Quaternion q;
+#if defined(USE_CMSIS_DSP)
+    float cosX2 = Espfc::Utils::fastCos(x * 0.5f);
+    float sinX2 = Espfc::Utils::fastSin(x * 0.5f);
+    float cosY2 = Espfc::Utils::fastCos(y * 0.5f);
+    float sinY2 = Espfc::Utils::fastSin(y * 0.5f);
+    float cosZ2 = Espfc::Utils::fastCos(z * 0.5f);
+    float sinZ2 = Espfc::Utils::fastSin(z * 0.5f);
+#else
     float cosX2 = cosf(x / 2.0f);
     float sinX2 = sinf(x / 2.0f);
     float cosY2 = cosf(y / 2.0f);
     float sinY2 = sinf(y / 2.0f);
     float cosZ2 = cosf(z / 2.0f);
     float sinZ2 = sinf(z / 2.0f);
+#endif
 
     q.w = cosX2 * cosY2 * cosZ2 + sinX2 * sinY2 * sinZ2;
     q.x = sinX2 * cosY2 * cosZ2 - cosX2 * sinY2 * sinZ2;
@@ -377,12 +390,15 @@ public:
 
   VectorBase<T> eulerFromQuaternion(const Quaternion& q)
   {
-    // x = atan2f(2.0f * (q.y * q.z + q.w * q.x), 1.f - 2.0f * (q.x * q.x + q.y * q.y));
-    // y =  asinf(2.0f * (q.w * q.y - q.x * q.z));
-    // z = atan2f(2.0f * (q.x * q.y + q.w * q.z), 1.f - 2.0f * (q.y * q.y + q.z * q.z));
+#if defined(USE_CMSIS_DSP)
+    x = Espfc::Utils::fastAtan2(q.w * q.x + q.y * q.z, 0.5f - q.x * q.x - q.y * q.y);
+    y = Espfc::Utils::fastAsin(-2.0f * (q.x * q.z - q.w * q.y));
+    z = Espfc::Utils::fastAtan2(q.x * q.y + q.w * q.z, 0.5f - q.y * q.y - q.z * q.z);
+#else
     x = atan2f(q.w * q.x + q.y * q.z, 0.5f - q.x * q.x - q.y * q.y);
     y = asinf(-2.0f * (q.x * q.z - q.w * q.y));
     z = atan2f(q.x * q.y + q.w * q.z, 0.5f - q.y * q.y - q.z * q.z);
+#endif
     return *this;
   }
 

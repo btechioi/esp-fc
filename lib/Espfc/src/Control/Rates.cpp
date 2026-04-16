@@ -43,11 +43,11 @@ float FAST_CODE_ATTR Rates::betaflight(const int axis, float rcCommandf, const f
 {
   if (this->rcExpo[axis])
   {
-    const float expof = this->rcExpo[axis] / 100.0f;
+    const float expof = this->rcExpo[axis] * 0.01f;
     rcCommandf = rcCommandf * power3(rcCommandfAbs) * expof + rcCommandf * (1 - expof);
   }
 
-  float rcRate = this->rcRates[axis] / 100.0f;
+  float rcRate = this->rcRates[axis] * 0.01f;
   if (rcRate > 2.0f)
   {
     rcRate += RC_RATE_INCREMENTAL * (rcRate - 2.0f);
@@ -55,7 +55,7 @@ float FAST_CODE_ATTR Rates::betaflight(const int axis, float rcCommandf, const f
   float angleRate = 200.0f * rcRate * rcCommandf;
   if (this->rates[axis])
   {
-    const float rcSuperfactor = 1.0f / (constrainf(1.0f - (rcCommandfAbs * (this->rates[axis] / 100.0f)), 0.01f, 1.00f));
+    const float rcSuperfactor = 1.0f / (constrainf(1.0f - (rcCommandfAbs * (this->rates[axis] * 0.01f)), 0.01f, 1.00f));
     angleRate *= rcSuperfactor;
   }
 
@@ -75,10 +75,10 @@ float FAST_CODE_ATTR Rates::raceflight(const int axis, float rcCommandf, const f
 
 float FAST_CODE_ATTR Rates::kiss(const int axis, float rcCommandf, const float rcCommandfAbs) const
 {
-  const float rcCurvef = this->rcExpo[axis] / 100.0f;
+  const float rcCurvef = this->rcExpo[axis] * 0.01f;
 
-  float kissRpyUseRates = 1.0f / (constrainf(1.0f - (rcCommandfAbs * (this->rates[axis] / 100.0f)), 0.01f, 1.00f));
-  float kissRcCommandf = (power3(rcCommandf) * rcCurvef + rcCommandf * (1 - rcCurvef)) * (this->rcRates[axis] / 1000.0f);
+  float kissRpyUseRates = 1.0f / (constrainf(1.0f - (rcCommandfAbs * (this->rates[axis] * 0.01f)), 0.01f, 1.00f));
+  float kissRcCommandf = (power3(rcCommandf) * rcCurvef + rcCommandf * (1 - rcCurvef)) * (this->rcRates[axis] * 0.001f);
   float kissAngle = constrainf(((2000.0f * kissRpyUseRates) * kissRcCommandf), -SETPOINT_RATE_LIMIT, SETPOINT_RATE_LIMIT);
 
   return kissAngle;
@@ -86,7 +86,7 @@ float FAST_CODE_ATTR Rates::kiss(const int axis, float rcCommandf, const float r
 
 float FAST_CODE_ATTR Rates::actual(const int axis, float rcCommandf, const float rcCommandfAbs) const
 {
-  float expof = this->rcExpo[axis] / 100.0f;
+  float expof = this->rcExpo[axis] * 0.01f;
   expof = rcCommandfAbs * (power5(rcCommandf) * expof + rcCommandf * (1 - expof));
 
   const float centerSensitivity = this->rcRates[axis] * 10.0f;
@@ -100,7 +100,7 @@ float FAST_CODE_ATTR Rates::quick(const int axis, float rcCommandf, const float 
 {
   const float rcRate = this->rcRates[axis] * 2;
   const float maxDPS = std::max(this->rates[axis] * 10.f, rcRate);
-  const float linearity = this->rcExpo[axis] / 100.0f;
+  const float linearity = this->rcExpo[axis] * 0.01f;
   const float superFactorConfig = (maxDPS / rcRate - 1) / (maxDPS / rcRate);
 
   float curve = power3(rcCommandfAbs) * linearity + rcCommandfAbs * (1 - linearity);

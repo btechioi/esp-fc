@@ -3,6 +3,11 @@
 #include <cstdint>
 #include <cstddef>
 #include "Utils/Math.hpp"
+#include "Utils/BiquadFilterType.h"
+
+#if defined(USE_CMSIS_DSP)
+#include "Utils/CmsisFilter.hpp"
+#endif
 
 namespace Espfc {
 
@@ -18,12 +23,6 @@ enum FilterType {
   FILTER_FIR2,
   FILTER_MEDIAN3,
   FILTER_NONE,
-};
-
-enum BiquadFilterType {
-  BIQUAD_FILTER_LPF,
-  BIQUAD_FILTER_NOTCH,
-  BIQUAD_FILTER_BPF
 };
 
 class FilterConfig
@@ -91,6 +90,10 @@ class FilterStateBiquad {
 
     float b0, b1, b2, a1, a2;
     float x1, x2, y1, y2;
+
+#if defined(USE_CMSIS_DSP)
+    FilterStateBiquadQ31 q31;
+#endif
 };
 
 class FilterStateFirstOrder {
