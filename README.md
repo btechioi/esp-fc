@@ -67,13 +67,16 @@ A high-performance, open-source flight controller for multirotor drones. Forked 
 * [PlatformIO](https://platformio.org/install/ide?install=vscode) (for development)
 * [CH340 Driver](https://sparks.gogo.co.nz/ch340.html) (for USB serial)
 
-### Flashing Pre-built Firmware
+### Install Firmware
 
-```bash
-# Download from Releases
-# Visit https://espressif.github.io/esptool-js/
-# Connect device → Add firmware → Flash Address 0x00 → Program
-```
+**Download:** [Latest Release](https://github.com/btechioi/esp-fc/releases/latest)
+
+| Board | Method |
+|-------|--------|
+| ESP32/S3/C3/S2 | [Web Flasher](https://espressif.github.io/esptool-js/) or [esptool.py](/docs/installation.md#esp32--esp32-s3--esp32-c3--esp32-s2) |
+| RP2040/RP2350 | [Drag & Drop UF2](/docs/installation.md#rp2040--rp2350) |
+
+Full instructions: [Installation Guide](/docs/installation.md)
 
 ### Building from Source
 
@@ -91,6 +94,7 @@ pio run -e esp32s3    # or rp2040, rp2350, etc.
 > [!IMPORTANT]
 > Read the documentation carefully before flying!
 
+* [📥 Installation](/docs/installation.md) - How to flash firmware
 * [📖 Setup Guide](/docs/setup.md) - Initial configuration
 * [🔌 Wiring](/docs/wiring.md) - Pin connections
 * [💻 CLI Commands](/docs/cli.md) - Full command reference
