@@ -1,4 +1,4 @@
-name: platformio
+name: ESP-FC Build
 
 on:
   push:
@@ -7,98 +7,136 @@ on:
   pull_request:
     branches: [ '*' ]
 
+env:
+  PLATFORMIO_VERSION: '6'
+
 jobs:
   test:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Cache Pio
+
+      - name: Cache PlatformIO
         uses: actions/cache@v4
         with:
           path: |
             ~/.cache/pip
             ~/.platformio/.cache
-          key: ${{ runner.os }}-pio
+          key: ${{ runner.os }}-pio-${{ hashFiles('platformio.ini') }}
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install Dependencies
+
+      - name: Install PlatformIO
         run: pip install --upgrade platformio
-      - name: Run PlatformIO Test
-        run: platformio test -e native
+
+      - name: Run Unit Tests
+        run: pio test -e native
 
   build:
     needs: test
     runs-on: ubuntu-24.04
     strategy:
+      fail-fast: false
       matrix:
         target:
-          - { name: 'esp32',   merge: true }
-          - { name: 'esp32s2', merge: true }
-          - { name: 'esp32s3', merge: true }
-          - { name: 'esp32c3', merge: true }
-          - { name: 'esp8266', merge: false }
-          - { name: 'rp2040',  merge: false }
-          - { name: 'rp2350',  merge: false }
+          - name: esp32
+            merge: true
+            uf2: false
+          - name: esp32s2
+            merge: true
+            uf2: false
+          - name: esp32s3
+            merge: true
+            uf2: false
+          - name: esp32c3
+            merge: true
+            uf2: false
+          - name: esp8266
+            merge: false
+            uf2: false
+          - name: rp2040
+            merge: false
+            uf2: true
+          - name: rp2350
+            merge: false
+            uf2: true
 
     steps:
       - uses: actions/checkout@v4
-      - name: Cache Pio
+
+      - name: Cache PlatformIO
         uses: actions/cache@v4
         with:
           path: |
             ~/.cache/pip
             ~/.platformio/.cache
-          key: ${{ runner.os }}-pio
+          key: ${{ runner.os }}-pio-${{ hashFiles('platformio.ini') }}
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install Dependencies
+
+      - name: Install PlatformIO
         run: pip install --upgrade platformio
 
       - name: Extract Version
+        id: version
         run: |
-          VAR_REV=$(echo ${GITHUB_SHA} | cut -c1-7)
+          REV=$(echo ${GITHUB_SHA} | cut -c1-7)
           if [[ $GITHUB_EVENT_NAME == "pull_request" ]]; then
-            VAR_VER="pr${{ github.event.pull_request.number }}"
-            VAR_NAME="espfc_${VAR_VER}_${{ matrix.target.name }}"
+            VER="pr${{ github.event.pull_request.number }}"
+            NAME="espfc_${VER}_${{ matrix.target.name }}"
           elif [[ $GITHUB_REF == refs/tags/* ]]; then
-            VAR_VER="${GITHUB_REF#refs/tags/}"
-            VAR_NAME="espfc_${VAR_VER}_${{ matrix.target.name }}"
+            VER="${GITHUB_REF#refs/tags/}"
+            NAME="espfc_${VER}_${{ matrix.target.name }}"
           else
-            VAR_VER="0.0.0"
-            VAR_NAME="espfc_${VAR_REV}_${{ matrix.target.name }}"
+            VER="0.0.0"
+            NAME="espfc_${REV}_${{ matrix.target.name }}"
           fi
-          echo VERSION=$VAR_VER
-          echo REVISION=$VAR_REV
-          echo FILENAME=$VAR_NAME
-          echo "build_ver=${VAR_VER}" >> $GITHUB_ENV
-          echo "build_rev=${VAR_REV}" >> $GITHUB_ENV
-          echo "build_name=${VAR_NAME}" >> $GITHUB_ENV
+          echo "VERSION=${VER}" >> $GITHUB_ENV
+          echo "REVISION=${REV}" >> $GITHUB_ENV
+          echo "FILENAME=${NAME}" >> $GITHUB_ENV
+          echo "build_ver=${VER}" >> $GITHUB_OUTPUT
+          echo "build_rev=${REV}" >> $GITHUB_OUTPUT
+          echo "build_name=${NAME}" >> $GITHUB_OUTPUT
 
-      - name: Build Target
+      - name: Build ${{ matrix.target.name }}
         run: |
-          platformio run -e ${{ matrix.target.name }}
-          mv .pio/build/${{ matrix.target.name }}/firmware.bin .pio/build/${{ env.build_name }}.bin
-        env:
-          PLATFORMIO_BUILD_FLAGS: -DESPFC_REVISION=${{ env.build_rev }} -DESPFC_VERSION=${{ env.build_ver }}
+          pio run -e ${{ matrix.target.name }}
+          mv .pio/build/${{ matrix.target.name }}/firmware.bin .pio/build/${{ env.FILENAME }}.bin
 
-      - name: Rename Target Merged
-        if: ${{ matrix.target.merge == true }}
-        run: |
-          mv .pio/build/${{ matrix.target.name }}/firmware_0x00.bin .pio/build/${{ env.build_name }}_0x00.bin
-
-      - name: Create Artifact
+      - name: Upload Firmware Binary
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.build_name }}.bin
-          path: .pio/build/${{ env.build_name }}.bin
+          name: ${{ env.FILENAME }}.bin
+          path: .pio/build/${{ env.FILENAME }}.bin
 
-      - name: Create Artifact Merged 
-        uses: actions/upload-artifact@v4
+      - name: Upload Merged Binary
         if: ${{ matrix.target.merge == true }}
+        run: |
+          mv .pio/build/${{ matrix.target.name }}/firmware_0x00.bin .pio/build/${{ env.FILENAME }}_0x00.bin
+        continue-on-error: true
+
+      - name: Upload Merged Artifact
+        if: ${{ matrix.target.merge == true }}
+        uses: actions/upload-artifact@v4
         with:
-          name: "${{ env.build_name }}_0x00.bin"
-          path: .pio/build/${{ env.build_name }}_0x00.bin
+          name: ${{ env.FILENAME }}_0x00.bin
+          path: .pio/build/${{ env.FILENAME }}_0x00.bin
+
+      - name: Upload UF2 Image
+        if: ${{ matrix.target.uf2 == true }}
+        run: |
+          mv .pio/build/${{ matrix.target.name }}/firmware.uf2 .pio/build/${{ env.FILENAME }}.uf2
+        continue-on-error: true
+
+      - name: Upload UF2 Artifact
+        if: ${{ matrix.target.uf2 == true }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.FILENAME }}.uf2
+          path: .pio/build/${{ env.FILENAME }}.uf2
