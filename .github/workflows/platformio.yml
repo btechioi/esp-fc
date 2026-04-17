@@ -1,11 +1,12 @@
-name: ESP-FC Build
+name: ESP-FC Build & Release
 
 on:
   push:
     branches: [ '*' ]
-    tags: [ 'v*' ]
   pull_request:
     branches: [ '*' ]
+  release:
+    types: [ published ]
 
 env:
   PLATFORMIO_VERSION: '6'
@@ -100,9 +101,6 @@ jobs:
           echo "VERSION=${VER}" >> $GITHUB_ENV
           echo "REVISION=${REV}" >> $GITHUB_ENV
           echo "FILENAME=${NAME}" >> $GITHUB_ENV
-          echo "build_ver=${VER}" >> $GITHUB_OUTPUT
-          echo "build_rev=${REV}" >> $GITHUB_OUTPUT
-          echo "build_name=${NAME}" >> $GITHUB_OUTPUT
 
       - name: Build ${{ matrix.target.name }}
         run: |
@@ -112,31 +110,62 @@ jobs:
       - name: Upload Firmware Binary
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.FILENAME }}.bin
+          name: firmware-${{ matrix.target.name }}
           path: .pio/build/${{ env.FILENAME }}.bin
 
-      - name: Upload Merged Binary
+      - name: Prepare Merged Binary
         if: ${{ matrix.target.merge == true }}
         run: |
-          mv .pio/build/${{ matrix.target.name }}/firmware_0x00.bin .pio/build/${{ env.FILENAME }}_0x00.bin
+          mv .pio/build/${{ matrix.target.name }}/firmware_0x00.bin .pio/build/${{ env.FILENAME }}_0x00.bin || true
         continue-on-error: true
 
       - name: Upload Merged Artifact
         if: ${{ matrix.target.merge == true }}
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.FILENAME }}_0x00.bin
+          name: firmware-merged-${{ matrix.target.name }}
           path: .pio/build/${{ env.FILENAME }}_0x00.bin
 
-      - name: Upload UF2 Image
+      - name: Prepare UF2 Image
         if: ${{ matrix.target.uf2 == true }}
         run: |
-          mv .pio/build/${{ matrix.target.name }}/firmware.uf2 .pio/build/${{ env.FILENAME }}.uf2
+          mv .pio/build/${{ matrix.target.name }}/firmware.uf2 .pio/build/${{ env.FILENAME }}.uf2 || true
         continue-on-error: true
 
       - name: Upload UF2 Artifact
         if: ${{ matrix.target.uf2 == true }}
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.FILENAME }}.uf2
+          name: firmware-uf2-${{ matrix.target.name }}
           path: .pio/build/${{ env.FILENAME }}.uf2
+
+  release:
+    needs: build
+    runs-on: ubuntu-24.04
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Display structure
+        run: ls -R artifacts/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: false
+          prerelease: ${{ contains(github.ref, 'beta') || contains(github.ref, 'alpha') }}
+          generate_release_notes: true
+          files: |
+            artifacts/firmware-*/espfc_*.bin
+            artifacts/firmware-merged-*/espfc_*_0x00.bin
+            artifacts/firmware-uf2-*/espfc_*.uf2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
