@@ -1,133 +1,159 @@
-# ESP-FC Flight Controller
+<p align="center">
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=0:fd79a8,100:a29bfe&height=200&section=header&text=Banumath%20%7C%20ESP-FC%20Flight%20Controller&fontSize=40&fontAlignY=35&animation=fadeIn&fontColor=ffffff"/>
+</p>
 
-The mini, DIY, Low cost, ESP32 based, high performance flight controller for hobbyists.
+# 🛠️ Hi, I'm Banumath (btechioi)
 
-# Features
+**Hardware Hacker | Cybersecurity Researcher | Astro Developer**
 
-* Espressif targets (ESP32, ESP32-S3)
-* ESC protocols (PWM, Oneshot125/42, Multishot, Brushed, Dshot150/300/600 bidirectional)
-* PPM, SBUS, IBUS and CRSF Receivers
-* Builtin ESP-NOW receiver and WiFi configuration [read more...](/docs/wireless.md)
-* SPI and I2C gyro modules support (MPU6050, MPU9250, ICM20602, BMI160)
-* Flight modes (ACRO, ANGLE, AIRMODE)
-* Frames (Quad X)
-* Betaflight configuration tool compatible (v10.10)
-* Configurable Gyro Filters (LPF, Dynamic Notches, dTerm, RPM)
-* Blackbox recording (OpenLog/OpenLager/Flash)
-* Up to 4kHz gyro/loop on ESP32 with SPI gyro
-* MSP and CLI protocol interface
-* Resorce/Pin mapping
-* In flight PID Tuning
-* Buzzer, Led and voltage monitor
-* Failsafe mode
+I build high-performance web experiences, autonomous robotics, and secure systems. I run **Arch Linux** (btw), deploy on **Netlify**, and believe in the power of the **Astro** islands architecture.
 
-# Documentation
+---
 
-In this repository you can find firmware code that allows you to build your own flight controller. For convenience it mimics Betaflight 4.2 compability, so that it can be configured using [betaflight-configurator](https://github.com/betaflight/betaflight-configurator). Also [online blackbox-log-viewer](https://blackbox.betaflight.com/) can be used to analyze blackbox logs. In most aspects it is similar to Betaflight, so that many configuration and tuning advices are helpfull here too. But you must be aware, that this software is not the same as Betaflight, there are some limitations and differences in functionality and performance.
+# 🛸 ESP-FC - DIY Flight Controller
+
+**Custom ESP32/RP2040/RP2350 Flight Controller Firmware**
+
+A high-performance, open-source flight controller for multirotor drones. Forked from [rtlopez/esp-fc](https://github.com/rtlopez/esp-fc) with enhancements for RP2040/RP2350 support and CMSIS-DSP optimizations.
+
+---
+
+# 🚀 Features
+
+* **Multi-Platform Support:** ESP32, ESP32-S3, RP2040, RP2350
+* **ESC Protocols:** PWM, Oneshot125/42, Multishot, Brushed, Dshot150/300/600 bidirectional
+* **RC Receivers:** PPM, SBUS, IBUS, CRSF/ELRS, ESP-NOW
+* **Sensors:** SPI/I2C gyro modules (MPU6050, MPU9250, ICM20602, BMI160)
+* **GPS:** u-blox M8, M9, F9, M10 with dual-band L1+L5 support
+* **Flight Modes:** ACRO, ANGLE, AIRMODE, ALTHOLD, GPS Rescue
+* **Filters:** LPF, Dynamic Notches, dTerm, RPM filtering
+* **Blackbox:** OpenLog/OpenLager/Flash recording
+* **Betaflight Compatible:** Configurable via Betaflight Configurator v10.10
+* **MSP/CLI Interface:** Full command-line configuration
+* **CMSIS-DSP Optimizations:** Q31 fixed-point for no-FPU targets
+
+---
+
+# 🔥 Performance
+
+| Platform | Loop Rate | Gyro | Filters |
+|----------|-----------|------|---------|
+| ESP32-S3 | 4kHz | SPI | Full Dyna Notch |
+| RP2040 | 2kHz | SPI | Q31 optimized |
+| RP2350 | 2kHz | SPI | Q31 optimized |
+
+---
+
+# 💻 Tech Stack
+
+<p>
+<img src="https://skillicons.dev/icons?i=cpp,arduino,raspberrypi"/>
+</p>
+
+**CMSIS-DSP** • **PlatformIO** • **Betaflight MSP** • **ArduPilot**
+
+---
+
+# 📦 Quick Start
+
+### Hardware Requirements
+* **ESP32/ESP32-S3** or **RP2040/RP2350** board
+* **Gyro:** MPU9250 SPI or MPU6050 I2C (GY-88, GY-91, GY-521)
+* **PDB** with 5V BEC
+* **Buzzer** and components (optional)
+
+### Software Requirements
+* [Betaflight Configurator](https://github.com/betaflight/betaflight-configurator/releases) v10.10+
+* [PlatformIO](https://platformio.org/install/ide?install=vscode) (for development)
+* [CH340 Driver](https://sparks.gogo.co.nz/ch340.html) (for USB serial)
+
+### Flashing Pre-built Firmware
+
+```bash
+# Download from Releases
+# Visit https://espressif.github.io/esptool-js/
+# Connect device → Add firmware → Flash Address 0x00 → Program
+```
+
+### Building from Source
+
+```bash
+# Clone and build
+git clone https://github.com/btechioi/esp-fc.git
+cd esp-fc
+pio run -e esp32s3    # or rp2040, rp2350, etc.
+```
+
+---
+
+# 📚 Documentation
 
 > [!IMPORTANT]
-> Before you begin, **read the following documentation carefully first!**.
+> Read the documentation carefully before flying!
 
- * [Setup Guide](/docs/setup.md)
- * [Wiring](/docs/wiring.md)
- * [CLI Commands](/docs/cli.md)
- * [WIFI and ESP-NOW Receiver](/docs/wireless.md)
+* [📖 Setup Guide](/docs/setup.md) - Initial configuration
+* [🔌 Wiring](/docs/wiring.md) - Pin connections
+* [💻 CLI Commands](/docs/cli.md) - Full command reference
+* [📡 ESP-NOW RC Bridge](/docs/espnow-bridge.md) - Wireless RC for RP2040
+* [⚡ CMSIS-DSP Optimization](/docs/cmsis-dsp.md) - Q31 for ARM M0+
+* [🔗 Connections](/docs/connections.md) - UART/I2C/SPI wiring
+* [🌐 Wireless Setup](/docs/wireless.md) - WiFi configuration
+* [🛠️ Development](/docs/development.md) - Building and debugging
 
-Join our **[Discord Channel](https://discord.gg/jhyPPM5UEH)** to get help
+---
 
-# Quick Start
+# 🎮 Supported Hardware
 
-## Requirements
+### Microcontrollers
+| Platform | Status | Notes |
+|----------|--------|-------|
+| ESP32-S3 | ✅ Recommended | Best performance, FPU |
+| ESP32 | ✅ Recommended | Good performance, FPU |
+| RP2350 | ✅ Beta | Cortex-M33, CMSIS-DSP |
+| RP2040 | ✅ Beta | Cortex-M0+, no FPU |
+| ESP32-C3 | 🟡 Experimental | RISC-V, limited |
+| ESP8266 | 🔴 Obsolete | No longer supported |
 
-Hardware:
-* ESP32 or ESP32-S3 board
-* MPU9250 SPI or MPU6050 I2C gyro (GY-88, GY-91, GY-521 or similar)
-* PDB with 5V BEC
-* Buzzer and some electronic components (optional).
+### Sensors
+| Type | Supported |
+|------|-----------|
+| Gyro | MPU6050, MPU6000, MPU6500, MPU9250, ICM20602, BMI160 |
+| Accel | Integrated with gyro |
+| Baro | BMP180, BMP280, SPL06 |
+| Mag | HMC5883, QMC5883, AK8963 |
+| GPS | u-blox M8, M9, F9, M10 (dual-band) |
 
-Software:
-* [Betaflight Configurator](https://github.com/betaflight/betaflight-configurator/releases) (v10.10)
-* [CH340 usb-serial converter driver](https://sparks.gogo.co.nz/ch340.html)
+### ESC Protocols
+PWM • ONESHOT125 • ONESHOT42 • MULTISHOT • BRUSHED • DSHOT150/300/600 (bidirectional)
 
-## Flashing
+---
 
-1. Download and unpack selected firmware from [Releases Page](https://github.com/rtlopez/esp-fc/releases)
-2. Visit [ESP Tool Website](https://espressif.github.io/esptool-js/)
-3. Click "Connect" and choose device port in dialog
-4. Add firmware file and set Flash Address to `0x00`
-5. Click "Program"
-6. After success power cycle board
+# 🌱 Current Projects
 
-![ESP-FC Flashing](/docs/images/esptool-js-flash-connect.png)
+🛸 **Autonomous Drone Fleet**
+Custom flight paths and computer vision obstacle avoidance with **ROS2**.
 
-## Setup
+🔒 **IoT Security Sandbox**
+Penetration testing for smart home **MQTT** vulnerabilities.
 
-After flashing you need to configure few things first:
+---
 
- 1. Configure pinout according to your wiring, especially pin functions, you can find more information in [CLI Reference](/docs/cli.md)
- 2. Connect to [Betaflight Configurator](https://github.com/betaflight/betaflight-configurator/releases) and setup to your preferences,
- 3. Test motors without propellers
- 4. Have fun ;)
+# 🔥 GitHub Stats
+<p align="left">
+<img src="https://streak-stats.demolab.com/?user=btechioi&theme=tokyonight" alt="GitHub Streak" />
+</p>
 
-> [!NOTE]
-> Not all functions displayed in configurator are avalable in firmware. The rule of thumb is if you cannot change specific option in Betaflight Configurator, that means it is not supported. It usually rolls back to previous value after save. It is strongly recommended to follow [setup guide](/docs/setup.md).
+---
 
-## Wiring diagrams
+# 📫 Reach Out
+📧 **Email:** [banumathhettiarachchi@gmail.com](mailto:banumathhettiarachchi@gmail.com)
+🌐 **Blog:** [btechioi.netlify.app](https://btechioi.netlify.app)
+🐙 **GitHub:** [github.com/btechioi](https://github.com/btechioi)
 
-[![ESP-FC example wiring diagrams](/docs/images/espfc_wiring_combined.png)](/docs/wiring.md)
+---
 
-## Supported Modules
+# 📄 License
 
- * **ESP32** - recommended
- * **ESP32-S3** - recommended
- * **ESP32-S2** - experimantal
- * **ESP32-C3** - experimantal, lack of performance, no FPU
- * **RP2350** - experimantal, partially works
- * **RP2040** - experimantal, lack of performance, no FPU
- * **ESP8266** - obsolete, no longer developed
+MIT License - Forked from [rtlopez/esp-fc](https://github.com/rtlopez/esp-fc)
 
-## Supported Sensors and Protocols
-
- * Gyro: MPU6050, MPU6000, MPU6500, MPU9250, ICM20602, BMI160
- * Barometers: BMP180, BMP280, SPL06
- * Magnetometers: HMC5883, QMC5883, AK8963, QMC5883P
- * Receivers: PPM, SBUS, IBUS, CRSF/ELRS
- * Esc Protocols: PWM, BRUSHED, ONESHOT125, ONESHOT42, MULTISHOT, DSHOT150, DSHOT300, DSHOT600
- * GPS: M8, M9, F9 & M10(dual band, all constellations configurable by cli)
- * Other protocols: MSP, CLI, BLACKBOX, ESPNOW
-
-## Issues
-
-You can report issues using Github [tracker](https://github.com/rtlopez/esp-fc/issues). 
-You can also join our [Discord Channel](https://discord.gg/jhyPPM5UEH)
-
-## Development
-
-* Visual Studio Code
-* [PlatformIO](https://platformio.org/install/ide?install=vscode) extension
-* Git
-
-## Todo
-
-* Altitude Hold
-* GPS Navigation
-* MS5611 barometer
-* Balancing robot controller
-
-## Licence
-
-This project is distributed under MIT Licence. Bear in mind that:
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-## Donations
-If you like this project and you want it to be still developed, you can support me a little.
-
-* BTC: 1Lopez7yPtbyjfLGe892JfheDFJMMt43tW
-* LTC: LV3G3sJxz9AYpDMYUp8e1LCmerFYxVY3ak
+⭐ *“Simplicity is the ultimate sophistication.” — Built on Arch.*

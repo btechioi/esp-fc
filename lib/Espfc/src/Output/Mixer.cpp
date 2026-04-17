@@ -256,7 +256,46 @@ void FAST_CODE_ATTR Mixer::writeOutput(const MixerConfig& mixer, float * out)
       else
       {
         float v = Utils::clamp(out[i], -1.f, 1.f);
-        _model.state.output.us[i] = lrintf(Utils::map(v, -1.f, 1.f, _model.state.mixer.minThrottle, _model.state.mixer.maxThrottle));
+        if(_model.config.output.enable3D)
+        {
+          int16_t min3d = _model.config.output.minThrottle;
+          int16_t max3d = _model.config.output.maxThrottle;
+          int16_t dbLow = _model.config.output.deadband3dLow;
+          int16_t dbHigh = _model.config.output.deadband3dHigh;
+          float dbLowNorm = dbLow * 0.001f;
+          float dbHighNorm = dbHigh * 0.001f;
+
+          if(v < 0.0f)
+          {
+            float range = dbLowNorm;
+            if(range > 0.001f)
+            {
+              float t = (v + 1.0f) / range;
+              _model.state.output.us[i] = lrintf(Utils::map(Utils::clamp(t, 0.0f, 1.0f), 0.0f, 1.0f, min3d, dbLow));
+            }
+            else
+            {
+              _model.state.output.us[i] = dbLow;
+            }
+          }
+          else
+          {
+            float range = 1.0f - dbHighNorm;
+            if(range > 0.001f)
+            {
+              float t = (v - dbHighNorm) / range;
+              _model.state.output.us[i] = lrintf(Utils::map(Utils::clamp(t, 0.0f, 1.0f), 0.0f, 1.0f, dbHigh, max3d));
+            }
+            else
+            {
+              _model.state.output.us[i] = dbHigh;
+            }
+          }
+        }
+        else
+        {
+          _model.state.output.us[i] = lrintf(Utils::map(v, -1.f, 1.f, _model.state.mixer.minThrottle, _model.state.mixer.maxThrottle));
+        }
       }
     }
   }

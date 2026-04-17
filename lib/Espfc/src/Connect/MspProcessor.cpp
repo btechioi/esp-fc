@@ -223,6 +223,19 @@ void MspProcessor::processCommand(MspMessage& m, MspResponse& r, Device::SerialD
       r.writeU8(0);  // i2c dev count
       break;
 
+    case MSP_SET_BOARD_INFO:
+      for(int i = 0; i < BOARD_IDENTIFIER_LENGTH; i++) m.readU8(); // boardIdentifier
+      m.readU16(); // hardware revision
+      m.readU8(); // 0 == FC
+      m.readU8(); // target capabilities
+      m.readU8(); // target name length
+      for(int i = 0; i < 20; i++) m.readU8(); // target name
+      m.readU8(); // board name length
+      for(int i = 0; i < 20; i++) m.readU8(); // board name
+      m.readU8(); // manufacturer id length
+      for(int i = 0; i < 20; i++) m.readU8(); // manufacturer name
+      break;
+
     case MSP_BUILD_INFO:
       r.writeData(buildDate, BUILD_DATE_LENGTH);
       r.writeData(buildTime, BUILD_TIME_LENGTH);
@@ -329,6 +342,27 @@ void MspProcessor::processCommand(MspMessage& m, MspResponse& r, Device::SerialD
           r.result = -1;
         }
       }
+      break;
+
+    case MSP_ADJUSTMENT_RANGES:
+      for(size_t i = 0; i < 16; i++)
+      {
+        r.writeU8(i);                     // adjustmentIndex
+        r.writeU8(i < INPUT_CHANNELS - AXIS_THRUST - 1 ? i + AXIS_AUX_1 - AXIS_THRUST + 3 : 0); // auxChannelIndex
+        r.writeU8(0);                     // rangeStart
+        r.writeU8(0);                     // rangeEnd
+        r.writeU8(0);                     // adjustmentFunction
+        r.writeU8(0);                     // auxSwitchChannelIndex
+      }
+      break;
+
+    case MSP_SET_ADJUSTMENT_RANGE:
+      m.readU8();                         // adjustmentIndex
+      m.readU8();                         // auxChannelIndex
+      m.readU8();                         // rangeStart
+      m.readU8();                         // rangeEnd
+      m.readU8();                         // adjustmentFunction
+      m.readU8();                         // auxSwitchChannelIndex
       break;
 
     case MSP_ANALOG:
@@ -506,6 +540,11 @@ void MspProcessor::processCommand(MspMessage& m, MspResponse& r, Device::SerialD
     case MSP_ACC_TRIM:
       r.writeU16(0); // pitch
       r.writeU16(0); // roll
+      break;
+
+    case MSP_SET_ACC_TRIM:
+      m.readU16(); // pitch - not implemented
+      m.readU16(); // roll - not implemented
       break;
 
     case MSP_MIXER_CONFIG:
@@ -762,9 +801,15 @@ void MspProcessor::processCommand(MspMessage& m, MspResponse& r, Device::SerialD
       break;
 
     case MSP_MOTOR_3D_CONFIG:
-      r.writeU16(1406); // deadband3d_low;
-      r.writeU16(1514); // deadband3d_high;
-      r.writeU16(1460); // neutral3d;
+      r.writeU16(_model.config.output.deadband3dLow);
+      r.writeU16(_model.config.output.deadband3dHigh);
+      r.writeU16(_model.config.output.neutral3d);
+      break;
+
+    case MSP_SET_MOTOR_3D_CONFIG:
+      _model.config.output.deadband3dLow = m.readU16();
+      _model.config.output.deadband3dHigh = m.readU16();
+      _model.config.output.neutral3d = m.readU16();
       break;
 
     case MSP_ARMING_CONFIG:
@@ -1385,6 +1430,30 @@ void MspProcessor::processCommand(MspMessage& m, MspResponse& r, Device::SerialD
       }
       break;
 
+    case MSP_SERVO_MIX_RULES:
+      r.writeU8(_model.config.customMixerCount);
+      for(size_t i = 0; i < MIXER_RULE_MAX; i++)
+      {
+        const MixerEntry& rule = _model.config.customMixes[i];
+        r.writeU8(rule.src);
+        r.writeU8(rule.dst);
+        r.writeU16(rule.rate);
+      }
+      break;
+
+    case MSP_SET_SERVO_MIX_RULE:
+      {
+        uint8_t index = m.readU8();
+        if(index < MIXER_RULE_MAX)
+        {
+          _model.config.customMixes[index].src = m.readU8();
+          _model.config.customMixes[index].dst = m.readU8();
+          _model.config.customMixes[index].rate = m.readU16();
+          _model.config.customMixerCount = std::max(_model.config.customMixerCount, static_cast<int8_t>(index + 1));
+        }
+      }
+      break;
+
     case MSP_ACC_CALIBRATION:
       if(!_model.isModeActive(MODE_ARMED)) _model.calibrateGyro();
       break;
@@ -1524,6 +1593,95 @@ void MspProcessor::processCommand(MspMessage& m, MspResponse& r, Device::SerialD
       r.writeU8(1); // gps_ublox_use_galileo
       break;
 
+    case MSP_GPS_RESCUE:
+      r.writeU16(_model.config.rescueConfigDelay); // angle
+      r.writeU16(20); // initialAltitudeM
+      r.writeU16(50); // descentDistanceM
+      r.writeU16(200); // rescueGroundSpeed
+      r.writeU8(0); // sanityChecks
+      r.writeU8(_model.config.gps.minSats); // minSats
+      r.writeU8(0); // throttleMin
+      r.writeU16(1500); // throttleMax
+      r.writeU8(0); // altMode
+      r.writeU8(1); // descendRate
+      r.writeU8(1); // rescueSpeed
+      break;
+
+    case MSP_SET_GPS_RESCUE:
+      m.readU16(); // angle
+      m.readU16(); // initialAltitudeM
+      m.readU16(); // descentDistanceM
+      m.readU16(); // rescueGroundSpeed
+      m.readU8(); // sanityChecks
+      if(m.remain() >= 1) {
+        _model.config.gps.minSats = m.readU8();
+      }
+      if(m.remain() >= 4) {
+        m.readU16(); // throttleMin
+        m.readU16(); // throttleMax
+      }
+      if(m.remain() >= 3) {
+        m.readU8(); // altMode
+        m.readU8(); // descendRate
+        m.readU8(); // rescueSpeed
+      }
+      break;
+
+    case MSP_GPS_RESCUE_PIDS:
+      r.writeU8(40); // throttle P
+      r.writeU8(0); // throttle I
+      r.writeU8(0); // throttle D
+      r.writeU8(80); // velocity P
+      r.writeU8(0); // velocity I
+      r.writeU8(0); // velocity D
+      r.writeU8(0); // yaw P
+      break;
+
+    case MSP_SET_GPS_RESCUE_PIDS:
+      m.readU8(); // throttle P
+      m.readU8(); // throttle I
+      m.readU8(); // throttle D
+      m.readU8(); // velocity P
+      m.readU8(); // velocity I
+      m.readU8(); // velocity D
+      m.readU8(); // yaw P
+      break;
+
+    case MSP_VTXTABLE_BAND:
+      r.writeU8(1); // vtxtable bands
+      r.writeU8(8); // vtxtable channels
+      r.writeU8(0); // vtxtable powerLabel
+      for(int i = 0; i < 8; i++) {
+        r.writeString(F("--------"));
+      }
+      for(int i = 0; i < 8; i++) {
+        r.writeU8(i < 5 ? (uint8_t)(5740 + i * 10) : 0); // frequency
+      }
+      break;
+
+    case MSP_VTXTABLE_POWERLEVEL:
+      r.writeU8(0); // vtxtable powerLabel
+      r.writeU16(0); // vtxtable powerValue
+      break;
+
+    case MSP_SET_VTXTABLE_BAND:
+      m.readU8(); // bands
+      m.readU8(); // channels
+      m.readU8(); // powerLabel
+      for(int i = 0; i < 8; i++) {
+        m.readU8(); // band name char
+        m.readU8(); m.readU8(); m.readU8(); m.readU8(); m.readU8(); m.readU8(); m.readU8();
+      }
+      for(int i = 0; i < 8; i++) {
+        m.readU8(); m.readU8(); // frequency
+      }
+      break;
+
+    case MSP_SET_VTXTABLE_POWERLEVEL:
+      m.readU8(); // powerLabel
+      m.readU16(); // powerValue
+      break;
+
   case MSP_RAW_GPS:
       r.writeU8(_model.state.gps.fixType > 2); // STATE(GPS_FIX));
       r.writeU8(_model.state.gps.numSats); // numSat
@@ -1550,6 +1708,39 @@ void MspProcessor::processCommand(MspMessage& m, MspResponse& r, Device::SerialD
         r.writeU8(static_cast<uint8_t>(_model.state.gps.svinfo[i].quality.value & 0xff)); // GPS_svinfo_quality[i]
         r.writeU8(_model.state.gps.svinfo[i].cno); // GPS_svinfo_cno[i]
       }
+      break;
+
+    case MSP_GPSSTATISTICS:
+      r.writeU32(0); // lastMessageDt
+      r.writeU16(0); // errors
+      r.writeU16(0); // warnings
+      r.writeU16(0); // messages
+      r.writeU32(0); // timeToFix
+      r.writeU32(0); // hdop
+      r.writeU32(0); // eph
+      r.writeU32(0); // epv
+      break;
+
+    case MSP_RTC:
+      r.writeU32(0); // command
+      r.writeU16(0); // milliseconds
+      r.writeU16(0); // seconds
+      r.writeU16(0); // minutes
+      r.writeU16(0); // hours
+      r.writeU16(0); // day
+      r.writeU16(0); // month
+      r.writeU16(0); // year
+      break;
+
+    case MSP_SET_RTC:
+      m.readU32(); // command
+      m.readU16(); // milliseconds
+      m.readU16(); // seconds
+      m.readU16(); // minutes
+      m.readU16(); // hours
+      m.readU16(); // day
+      m.readU16(); // month
+      m.readU16(); // year
       break;
 
     case MSP_EEPROM_WRITE:

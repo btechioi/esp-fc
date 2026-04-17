@@ -626,6 +626,10 @@ const Cli::Param * Cli::initialize(ModelConfig& c)
 #ifdef ESPFC_DSHOT_TELEMETRY
     Param(PSTR("output_dshot_telemetry"), &c.output.dshotTelemetry),
 #endif
+    Param(PSTR("output_3d_enable"), &c.output.enable3D),
+    Param(PSTR("output_3d_deadband_low"), &c.output.deadband3dLow),
+    Param(PSTR("output_3d_deadband_high"), &c.output.deadband3dHigh),
+    Param(PSTR("output_3d_neutral"), &c.output.neutral3d),
     Param(PSTR("output_0"), &c.output.channel[0]),
     Param(PSTR("output_1"), &c.output.channel[1]),
     Param(PSTR("output_2"), &c.output.channel[2]),

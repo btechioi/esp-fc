@@ -468,6 +468,11 @@ struct OutputConfig
   int8_t throttleLimitPercent = 100;
   int8_t motorLimit = 100;
 
+  bool enable3D = false;
+  int16_t deadband3dLow = 1406;
+  int16_t deadband3dHigh = 1514;
+  int16_t neutral3d = 1460;
+
   OutputChannelConfig channel[ESPFC_OUTPUT_COUNT];
 };
 

@@ -1,6 +1,8 @@
 #include "InputEspNowBridge.h"
 #include "Model.h"
 
+#if defined(ARDUINO_ARCH_RP2040)
+
 namespace Espfc {
 
 namespace Device {
@@ -141,3 +143,5 @@ void InputEspNowBridge::get(uint16_t* data, size_t len) const
 
 }
 }
+
+#endif
